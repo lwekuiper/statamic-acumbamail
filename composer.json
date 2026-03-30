@@ -9,7 +9,7 @@
         "orchestra/testbench": "^8.0 || ^9.0 || ^10.0",
         "phpunit/phpunit": "^12.0"
     },
-    "description": "Subscribe registrations or contact forms to Acumbamail",
+    "description": "Acumbamail integration for Statamic",
     "authors": [
         {
             "name": "Laurens Kuiper",
