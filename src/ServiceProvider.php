@@ -1,0 +1,128 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Lwekuiper\StatamicAcumbamail;
+
+use Lwekuiper\StatamicAcumbamail\Connectors\AcumbamailConnector;
+use Lwekuiper\StatamicAcumbamail\Data\AddonConfig;
+use Lwekuiper\StatamicAcumbamail\Fieldtypes\AcumbamailList;
+use Lwekuiper\StatamicAcumbamail\Fieldtypes\AcumbamailMergeFields;
+use Lwekuiper\StatamicAcumbamail\Fieldtypes\AcumbamailSites;
+use Lwekuiper\StatamicAcumbamail\Fieldtypes\StatamicFormFields;
+use Lwekuiper\StatamicAcumbamail\Listeners\AddFromSubmission;
+use Lwekuiper\StatamicAcumbamail\Listeners\EnsureFormConfigLocalizationsExist;
+use Lwekuiper\StatamicAcumbamail\Stache\FormConfigRepository;
+use Lwekuiper\StatamicAcumbamail\Stache\FormConfigStore;
+use Statamic\Events\FormSaved;
+use Statamic\Events\SubmissionCreated;
+use Statamic\Facades\Addon;
+use Statamic\Facades\CP\Nav;
+use Statamic\Facades\Form;
+use Statamic\Facades\Permission;
+use Statamic\Facades\Site;
+use Statamic\Providers\AddonServiceProvider;
+use Statamic\Stache\Stache;
+use Statamic\Statamic;
+
+class ServiceProvider extends AddonServiceProvider
+{
+    protected $fieldtypes = [
+        AcumbamailSites::class,
+        AcumbamailList::class,
+        AcumbamailMergeFields::class,
+        StatamicFormFields::class,
+    ];
+
+    protected $listen = [
+        FormSaved::class => [EnsureFormConfigLocalizationsExist::class],
+        SubmissionCreated::class => [AddFromSubmission::class],
+    ];
+
+    protected $routes = [
+        'cp' => __DIR__.'/../routes/cp.php',
+    ];
+
+    protected $vite = [
+        'input' => [
+            'resources/js/addon.js',
+        ],
+        'publicDirectory' => 'resources/dist',
+    ];
+
+    public function register()
+    {
+        $this->app->singleton(AcumbamailConnector::class, function () {
+            return new AcumbamailConnector();
+        });
+
+        $this->app->singleton(FormConfigRepository::class, function () {
+            return new FormConfigRepository($this->app['stache']);
+        });
+
+        $this->app->singleton(AddonConfig::class, function () {
+            return new AddonConfig();
+        });
+
+        $this->publishes([
+            __DIR__.'/../config/acumbamail.php' => config_path('statamic/acumbamail.php'),
+        ], 'statamic-acumbamail-config');
+    }
+
+    public function bootAddon()
+    {
+        $this->bootAddonPermissions();
+
+        Nav::extend(function ($nav) {
+            $isMultiSite = Site::multiEnabled()
+                && Addon::get('lwekuiper/statamic-acumbamail')->edition() === 'pro';
+
+            $siteEnabled = $isMultiSite
+                ? app(AddonConfig::class)->isEnabled(Site::selected()->handle())
+                : true;
+
+            $nav->create('Acumbamail')
+                ->section('Tools')
+                ->url($siteEnabled
+                    ? cp_route('acumbamail.index')
+                    : cp_route('acumbamail.edit'))
+                ->can('view acumbamail')
+                ->icon('<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 204 125"><path fill="currentColor" d="M1.2 26.5 22.4 22.5 26.4 1.3C26.4.6 26.9.1 27.6.1 28.3.1 28.8.6 28.8 1.3L32.8 22.5 54 26.5C54.7 26.5 55.2 27 55.2 27.7 55.2 28.4 54.7 29 54.1 29L32.9 33 28.9 54.2C28.9 54.9 28.4 55.4 27.7 55.4 27 55.4 26.5 54.9 26.5 54.2L22.5 33 1.2 28.9C.5 28.9 0 28.4 0 27.7 0 27 .5 26.5 1.2 26.5ZM180.5 109.8V108.3 105.3 93.3 69.4C180.5 61.4 180.5 53.5 180.4 45.5L180.3 39.5 180.2 36.5V35.7L180.1 34.5C180 33.7 179.9 33 179.6 32.2 178.7 29.2 176.7 26.6 174.1 25 172.8 24.2 171.3 23.6 169.8 23.3 169 23.2 168.3 23.1 167.5 23.1H167 166.6 165.9L118.1 22.9 94.2 22.8 70.3 22.6H70.2C67.3 22.6 65 25 65.1 27.8 65.1 30.7 67.5 33 70.3 32.9L94.2 32.6 118.1 32.5 162 32.2 109.5 74.8 105.8 77.8 103.9 79.3 103.7 79.5C103.6 79.6 103.6 79.6 103.6 79.6 103.5 79.6 103.5 79.7 103.4 79.7 103.3 79.8 103.1 79.9 103 79.9 102.4 80.2 101.7 80.3 101.1 80.2 100.4 80.1 99.9 80 99.2 79.5L84.5 67.4 55 43.2C55 43.2 55 43.2 54.9 43.2 52.6 41.4 49.3 41.8 47.5 44 45.7 46.3 46.1 49.6 48.3 51.4L78.1 75.3 93 87.1 93.7 87.6C93.9 87.8 94.2 88 94.5 88.1 95 88.5 95.6 88.7 96.2 89 97.3 89.5 98.6 89.9 99.8 90 102.3 90.3 104.9 89.9 107.2 88.8 107.8 88.5 108.3 88.2 108.9 87.9 109.4 87.6 110 87.1 110.2 86.9L112.1 85.4 115.8 82.4 170.8 37.7V39.4L170.7 45.4C170.6 53.4 170.6 61.3 170.6 69.3V93.2 105.2 108.2 109.7C170.6 110.2 170.6 110.8 170.6 110.9 170.6 111.7 170.2 112.4 169.7 113 169.1 113.6 168.4 113.9 167.6 113.9H167.5 167.4 167.2 166.5 165 162 150 126.1L78.3 113.8H54.4 42.4 36.4 36 35.9C35.8 113.8 35.7 113.8 35.6 113.8 35.4 113.8 35.2 113.7 35.1 113.7 34.8 113.6 34.4 113.4 34.2 113.2 33.6 112.7 33.2 112.1 33.1 111.4 33.1 111.2 33.1 111.1 33 110.8V109.3 106.3 94.3L32.9 70.4C32.9 67.6 30.6 65.3 27.7 65.2 24.8 65.2 22.5 67.5 22.5 70.4L22.4 94.3V106.3 109.3 110.8C22.4 111.5 22.5 112.4 22.6 113.2 23.1 116.4 24.9 119.4 27.4 121.4 28.7 122.4 30.1 123.2 31.7 123.7 32.5 123.9 33.3 124.1 34.1 124.2 34.5 124.3 34.9 124.3 35.3 124.3H35.9 36.3 42.3 54.3 78.2L126 124.2H149.9 161.9 164.9 166.4 167.1 167.3 167.6 168.2C171.4 124 174.5 122.6 176.7 120.3 179 118 180.3 114.9 180.5 111.7 180.5 110.6 180.5 110.3 180.5 109.8Z"/></svg>')
+                ->children(function () use ($siteEnabled) {
+                    if (! $siteEnabled) {
+                        return collect();
+                    }
+
+                    return Form::all()->sortBy->title()->map(function ($form) {
+                        return Nav::item($form->title())
+                            ->url(cp_route('acumbamail.form-config.edit', $form->handle()))
+                            ->can('edit acumbamail');
+                    });
+                });
+        });
+
+        Statamic::afterInstalled(function ($command) {
+            $command->call('vendor:publish', [
+                '--tag' => 'statamic-acumbamail-config',
+            ]);
+        });
+
+        $formConfigStore = new FormConfigStore();
+        $formConfigStore->directory(base_path('resources/acumbamail'));
+        app(Stache::class)->registerStore($formConfigStore);
+    }
+
+    protected function bootAddonPermissions(): void
+    {
+        Permission::group('acumbamail', 'Acumbamail', function () {
+            Permission::register('view acumbamail', function ($permission) {
+                $permission
+                    ->label(__('View Acumbamail'))
+                    ->children([
+                        Permission::make('edit acumbamail')
+                            ->label(__('Edit Acumbamail')),
+                    ]);
+            });
+        });
+    }
+}
