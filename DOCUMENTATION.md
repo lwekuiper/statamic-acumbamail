@@ -17,18 +17,21 @@
 
 ## Overview
 
-Statamic Acumbamail is an addon that connects your Statamic forms to Acumbamail. When a form is submitted, the addon automatically subscribes the contact to Acumbamail lists, assigns tags, and maps custom fields.
+Statamic Acumbamail is an addon that connects your Statamic forms to Acumbamail. When a form is submitted, the addon automatically subscribes the contact to Acumbamail lists and maps custom fields.
 
 ### Editions
 
-The addon is available in two editions:
+The addon is available in three editions:
 
-**Lite** (default):
+**Free**:
 - Connect any Statamic form to Acumbamail
-- Automatic contact creation and updating
-- Map form fields to Acumbamail merge fields
+- Automatic subscriber creation and updating
 - GDPR consent field support
-- Tag assignment on form submission
+- Double opt-in support
+
+**Lite**:
+- Everything in Free
+- Map form fields to Acumbamail merge fields
 
 **Pro** (requires Statamic Pro):
 - Everything in Lite
@@ -40,7 +43,7 @@ The addon is available in two editions:
 
 - PHP 8.2+
 - Laravel 11.0+
-- Statamic 4.0+ or 5.0+
+- Statamic 5.0+
 - An Acumbamail account with API access
 
 ## Installation
@@ -126,8 +129,7 @@ fields:
    - **Email Field** (required): Select the form field containing the subscriber's email address
    - **Consent Field** (optional): Select a boolean/toggle field for GDPR consent
    - **Lists** (required): Choose one or more Acumbamail lists to subscribe the contact to
-   - **Tags** (optional): Choose tags to apply to the contact
-   - **Merge Fields** (optional): Map form fields to Acumbamail fields
+   - **Merge Fields** (optional, Lite+): Map form fields to Acumbamail merge fields
 
 ### Step 3: Use the Form in Templates
 
@@ -186,7 +188,7 @@ The consent field provides GDPR compliance by requiring explicit opt-in before s
 
 ## Multi-Site Support (Pro)
 
-With the Pro edition and Statamic's multi-site enabled, you can configure different Acumbamail integrations per site. Each site gets its own form configuration with separate lists, tags, and field mappings.
+With the Pro edition and Statamic's multi-site enabled, you can configure different Acumbamail integrations per site. Each site gets its own form configuration with separate lists and field mappings.
 
 The control panel shows a site selector on both the listing and edit pages. When a form is submitted, the addon automatically detects which site it belongs to.
 
@@ -217,10 +219,10 @@ Super admins always have full access.
 1. Ensure the `resources/acumbamail/` directory exists and is writable
 2. Clear the Stache cache: `php please stache:clear`
 
-### Lists or tags not loading in the control panel
+### Lists not loading in the control panel
 
 1. Verify your API credentials are correct
-2. Check that your Acumbamail account has lists/tags created
+2. Check that your Acumbamail account has lists created
 3. Check logs for API error messages
 
 ### Multi-site not working
